@@ -1,0 +1,58 @@
+#ifndef _MAC
+  #include <windows.h>
+#endif    // !_MAC
+
+#define APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+    MeeblipVST_Background.png   PNG  DISCARDABLE    "../resource/MeeblipVST_Layout_2013-09-24.png"
+
+    KnobAnimated.png            PNG  DISCARDABLE    "../resource/aweWhite_Vol_(0..127).png"
+    Knob2Animated.png           PNG  DISCARDABLE    "../resource/aweWhite_Pan_(-64..+63).png"
+
+    ButtonAnimated.png          PNG  DISCARDABLE    "../resource/aweSlideSwitch_red_green.png"
+
+
+#ifndef _MAC
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+1 VERSIONINFO
+ FILEVERSION    1,0,0,0
+ PRODUCTVERSION 1,0,0,0
+ FILEFLAGSMASK 0x0L
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x2L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "000004e4"
+        BEGIN
+        	VALUE "CompanyName", "Axel Werner\0"
+                VALUE "FileDescription", "VSTGUI for Meeblip\0"
+                VALUE "FileVersion", "1.0.0"
+                VALUE "InternalName", "MeeblipVST"
+                VALUE "LegalCopyright", "free for use\0"
+                VALUE "OriginalFilename", "MeeblipVST"
+                VALUE "ProductName", "MeeblipVST"
+                VALUE "ProductVersion", "1.0.0.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0, 1252
+    END
+END
+
+#endif    // !_MAC
