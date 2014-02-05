@@ -9,7 +9,9 @@
 // --------------------------------------------------------------------------
 // Changelog
 //
-//    11.09.2013  AWe   adapted to use vstsdk2.4 from VST3 SDK and vstqui4
+//    29.01.2014  AWe   set initial values for gui elements from layout structure
+//    23.01.2014  AWe   in getParameterDisplay() correct calculation of stepcount interval
+//    11.09.2013  AWe   adapted to use vstsdk2.4 from VST3 SDK and vstgui4
 //    22.08.2013  AWe   extend method canDo()
 //    21.08.2013  AWe   add support for midi in/out
 //    19.08.2013  AWe   distinguish gui and non-gui parameters and controls
@@ -31,6 +33,8 @@
 #include "aweVSTtypes.h"
 
 #include "vstgui/plugin-bindings/aeffguieditor.h"
+
+#define MIDI_CONTROLCHANGE   0xB0
 
 // --------------------------------------------------------------------------
 // Debug support
@@ -93,8 +97,11 @@ MeeblipVST::MeeblipVST( audioMasterCallback audioMaster)
 
    for( VstInt32 i = 0; i < kNumGuiParameters; i++)
    {
-      parameters[i] = 0.0f;
-      ap->parameters[i] = 0.0f;
+      float value = KnobValue2float( getLayoutItem( i)->defaultValue, i);
+
+      parameters[i] = value;
+      ap->parameters[i] = value;
+      DBG( 2, "      set parameter %d %g %d", i, value, getLayoutItem( i)->defaultValue );
    }
 
    fMidiInChannel  = 0.0f;
@@ -105,10 +112,11 @@ MeeblipVST::MeeblipVST( audioMasterCallback audioMaster)
       setNumInputs( 2);
       setNumOutputs( 2);
 
-      canProcessReplacing();
+      canProcessReplacing();  // supports replacing output
+      canDoubleReplacing ();  // supports double precision processing
+
       isSynth();
-      setUniqueID( CCONST('G', 'U', 'I', '0'));
-      //      setUniqueID( 'Mblp');  // Meeblip
+      setUniqueID( CCONST('a', 'w', 'M', 'b'));// Axel's Meeblip
    }
 
    extern AEffGUIEditor* createEditor( AudioEffectX*);
@@ -194,12 +202,7 @@ void MeeblipVST::getParameterDisplay( VstInt32 index, char* text)
       }
       else
       {
-         if( value < 0.0f)
-            value = 0.0f;
-         else if( value >= 1.0f)
-            value = 1.0f;
-
-         int32 intVal = (int32)( value *( stepCount+1) + 0.5f);
+         VstInt32 intVal = float2KnobValue( value, index);
 
          // there is a bug in the int2string function:
          //    if intVal is zero, the returning string is empty
@@ -266,8 +269,6 @@ void MeeblipVST::setParameter( VstInt32 index, float value)
 
    if( index < kNumGuiParameters)
    {
-      // !!! todo: adjust parameter depending on stepCount
-
       MeeblipVSTProgram *ap = &programs[ curProgram];
       DBG( 0, "     %08x %d %d %d", (int)ap, curProgram, index, ap->parameters[index]);
 
@@ -301,6 +302,7 @@ float MeeblipVST::getParameter( VstInt32 index)
 
    if( index < kNumGuiParameters)
    {
+      DBG( 1, " %g", parameters[index] );
       return parameters[index];
    }
    else if( index < kNumGuiParameters + kNumExtraParameters)
@@ -311,8 +313,11 @@ float MeeblipVST::getParameter( VstInt32 index)
          case kMidiInChannel:   value = fMidiInChannel;  break;
          case kMidiOutChannel:  value = fMidiOutChannel; break;
       }
+      DBG( 1, " %g", value );
       return value;
    }
+
+   DBG( 1, " invalid" );
    return 0.f;
 }
 
@@ -630,8 +635,9 @@ void MeeblipVST::postProcess(void)
 }
 
 // --------------------------------------------------------------------------
-// *
+// * process incoming midi or sysex events
 // --------------------------------------------------------------------------
+// copy incoming midi events from the hosts event queue to the plugins midi event list
 
 VstInt32 MeeblipVST::processEvents( VstEvents* ev)
 {
@@ -639,23 +645,21 @@ VstInt32 MeeblipVST::processEvents( VstEvents* ev)
 
    if( PLUG_MIDI_INPUTS)
    {
-      VstEvents * evts = ev;
-
-      for( int i = 0; i < evts->numEvents; i++)
+      for( int i = 0; i < ev->numEvents; i++)
       {
-         if( (evts->events[i])->type == kVstMidiType)
+         if( (ev->events[i])->type == kVstMidiType)
          {
             DBG( 1, "\n\nMeeblipVST::processEvents (midi)" );
 
-            VstMidiEvent * e = (VstMidiEvent*)evts->events[i];
-            _midiEventsIn[0].push_back(*e);
+            VstMidiEvent* event = (VstMidiEvent*)ev->events[i];
+            _midiEventsIn[0].push_back(*event);
          }
-         else if( (evts->events[i])->type == kVstSysExType)
+         else if( (ev->events[i])->type == kVstSysExType)
          {
             DBG( 1, "\n\nMeeblipVST::processEvents (sysex)" );
 
-            VstMidiSysexEvent * e = (VstMidiSysexEvent*)evts->events[i];
-            _midiSysexEventsIn[0].push_back(*e);
+            VstMidiSysexEvent * event = (VstMidiSysexEvent*)ev->events[i];
+            _midiSysexEventsIn[0].push_back(*event);
          }
       }
    }
@@ -679,6 +683,7 @@ void MeeblipVST::processReplacing( float** inputs, float** outputs, VstInt32 sam
 
    float* in1  =  inputs[0];
    float* in2  =  inputs[1];
+
    float* out1 = outputs[0];
    float* out2 = outputs[1];
 
@@ -708,8 +713,8 @@ void MeeblipVST::processDoubleReplacing( double** inputs, double** outputs, VstI
    processMidiSysexEvents( _midiSysexEventsIn, _midiSysexEventsOut, sampleFrames);
 
 
-   double* in1  =  inputs[0];
-   double* in2  =  inputs[1];
+   double* in1  = inputs[0];
+   double* in2  = inputs[1];
    double* out1 = outputs[0];
    double* out2 = outputs[1];
 
@@ -737,7 +742,7 @@ tresult MeeblipVST::sendMidiCC( ParamID paramId, int32 midiValue)
    VstMidiEvent event = { 0 };
 
    event.deltaFrames = 0;
-   event.midiData[0] = 0xB0 + midiChannel;
+   event.midiData[0] = MIDI_CONTROLCHANGE + midiChannel;
    event.midiData[1] = (char)midiControllerNumber;
    event.midiData[2] = (char)midiValue;
 
@@ -752,6 +757,11 @@ tresult MeeblipVST::sendMidiCC( ParamID paramId, int32 midiValue)
 
 void MeeblipVST::processMidiEvents( VstMidiEventVec *inputs, VstMidiEventVec *outputs, VstInt32 sampleFrames)
 {
+#if defined( _DEBUG)
+   if( inputs[0].size() )
+      DBG( 1, "\nMeeblipVST::processMidiEvents" );
+#endif
+
    // process incoming events
    for( unsigned int i = 0; i < inputs[0].size(); i++)
    {
@@ -764,11 +774,11 @@ void MeeblipVST::processMidiEvents( VstMidiEventVec *inputs, VstMidiEventVec *ou
 
       if( midiStatus == 0x80)
       {
-         DBG( 2, "      Note onf" );
+         DBG( 2, "      Note off %d %d", midiData1, midiData2 );
       }
       else if( midiStatus == 0x90)
       {
-         DBG( 2, "      Note off" );
+         DBG( 2, "      Note on  %d %d", midiData1, midiData2 );
       }
       else if( midiStatus == 0xb0)
       {
@@ -815,3 +825,44 @@ void MeeblipVST::processMidiSysexEvents( VstSysexEventVec *inputs, VstSysexEvent
 //
 // --------------------------------------------------------------------------
 
+VstInt32 MeeblipVST::float2KnobValue( float value, VstInt32 index)
+{
+   VstInt32 intVal;
+   VstInt32 minValue  = getLayoutItem( index)->minValue;
+   VstInt32 maxValue  = getLayoutItem( index)->maxValue;
+   VstInt32 stepCount = getLayoutItem( index)->stepCount;
+
+   if( value < 1.0f/(2*stepCount))
+      intVal = minValue;
+   else if( value >= 1.0f - 1.0f/(2*stepCount))
+      intVal = maxValue;
+   else
+   {
+      VstInt32 n = VstInt32( (value - 1.0f/(2*stepCount)) * stepCount) + 1;
+      VstInt32 interval = (maxValue - minValue)/stepCount;
+      intVal = minValue + n * interval;
+   }
+
+   return intVal;
+}
+
+// --------------------------------------------------------------------------
+//
+// --------------------------------------------------------------------------
+
+float MeeblipVST::KnobValue2float( VstInt32 intVal, VstInt32 index)
+{
+   float value;
+
+   VstInt32 minValue  = getLayoutItem( index)->minValue;
+   VstInt32 maxValue  = getLayoutItem( index)->maxValue;
+   VstInt32 stepCount = getLayoutItem( index)->stepCount;
+
+   value = float(intVal - minValue)/float( stepCount);
+
+   return value;
+}
+
+// --------------------------------------------------------------------------
+//
+// --------------------------------------------------------------------------

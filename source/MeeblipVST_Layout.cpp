@@ -9,8 +9,9 @@
 // --------------------------------------------------------------------------
 // Changelog
 //
+//    29.01.2014  AWe   set initial values for gui elements from layout structure
 //    11.09.2013  AWe   adapted to use vstsdk2.4 from VST3 SDK and vstqui4
-//    01.08.2013  AWe   add mappinng methods mapCCToIndex
+//    01.08.2013  AWe   add mappinng methods mapCCToTag
 //    27.07.2013  AWe   use a structure for the GUI layout,
 //                      change this file for a new GUI layout
 //
@@ -171,9 +172,9 @@ MeeblipVST_LayoutItem MeeblipVST_Layout[] =
 //
 // --------------------------------------------------------------------------
 
-tresult mapCCToTag( CtrlNumber midiControllerNumber, ParamID &tag )
+tresult mapCCToTag( CtrlNumber midiControllerNumber, ParamID &tag)
 {
-   // search the index for the given midi cc number
+   // search the tag for the given midi cc number
    for( tag = 0; tag < kNumGuiParameters; tag++)
    {
       if( midiControllerNumber == MeeblipVST_Layout[ tag].CCindex)

@@ -9,6 +9,7 @@
 // --------------------------------------------------------------------------
 // Changelog
 //
+//    29.01.2014  AWe   set initial values for gui elements from layout structure
 //    11.09.2013  AWe   adapted to use vstsdk2.4 from VST3 SDK and vstqui4
 //    21.08.2013  AWe   add support for midi in/out
 //    19.08.2013  AWe   distinguish gui and non-gui parameters and controls
@@ -61,7 +62,7 @@ enum
 
 class MeeblipVSTProgram
 {
-friend class MeeblipVST;
+friend class MeeblipVST;	// allow MeeblipVST access to name variable
 public:
    MeeblipVSTProgram();
    ~MeeblipVSTProgram() {}
@@ -135,6 +136,9 @@ public:
 
 private:
    MeeblipVSTProgram* programs;
+
+   VstInt32 float2KnobValue( float value, VstInt32 index);
+   float KnobValue2float( VstInt32 intVal, VstInt32 index);
 
 protected:
    float parameters[ kNumGuiParameters];

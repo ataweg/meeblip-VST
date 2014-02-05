@@ -75,11 +75,11 @@ struct tagMeeblipVST_LayoutItem
    const int32 posX;
    const int32 posY;
 
-   const int8 minValue;
-   const int8 maxValue;
-   const int8 defaultValue;
-   const int8 stepCount;
-   const int8 CCindex;           // midiControllerNumber
+   const int16 minValue;
+   const int16 maxValue;
+   const int16 defaultValue;
+   const int16 stepCount;
+   const int16 CCindex;           // midiControllerNumber
 
 };
 

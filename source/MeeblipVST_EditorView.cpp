@@ -9,6 +9,8 @@
 // --------------------------------------------------------------------------
 // Changelog
 //
+//    29.01.2014  AWe   set initial values for gui elements from layout structure
+//    23.01.2014  AWe   in setParameter() correct calculation of stepcount interval
 //    11.09.2013  AWe   adapted to use vstsdk2.4 from VST3 SDK and vstqui4
 //    19.08.2013  AWe   distinguish gui and non-gui parameters and controls
 //    01.08.2013  AWe   add changes from meeblip VST3 projoct( v0.4)
@@ -64,7 +66,8 @@ bool MeeblipVST_EditorView::open( void* parent)
 
    for( int32 id = 0; id < numGuiItems; id++)
    {
-      imgBitmapList[id] = new CBitmap( MeeblipVST_Bitmaps[ id].desc);
+      if( MeeblipVST_Bitmaps[ id].desc != NULL)
+         imgBitmapList[id] = new CBitmap( MeeblipVST_Bitmaps[ id].desc);
    }
 
    // get the background image
@@ -76,6 +79,9 @@ bool MeeblipVST_EditorView::open( void* parent)
    // set Background image
    newFrame->setBackground( Background );
    newFrame->setSize( Background->getWidth(), Background->getHeight());           // window size
+
+   // -- set the member frame to our frame
+   frame = newFrame;
 
    DBG( 2, "      numLayoutItems %d", kNumGuiParameters );
 
@@ -96,9 +102,6 @@ bool MeeblipVST_EditorView::open( void* parent)
    {
       imgBitmapList[id]->forget();
    }
-
-   // -- set the member frame to our frame
-   frame = newFrame;
 
    return true;
 }
@@ -171,12 +174,15 @@ void MeeblipVST_EditorView::setParameter( VstInt32 index, float value)
       }
       else
       {
-         if( value < 1.0f/(stepCount+1))
+         if( value < 1.0f/((stepCount+1)*2))
             valueScaled = 0.0f;
-         else if( value >= 1.0f - 1.0f/(stepCount+1))
+         else if( value >= 1.0f - 1.0f/((stepCount+1)*2))
             valueScaled = 1.0f;
          else
-            valueScaled = value;
+         {
+            float n = floor( (value - 1.0f/(2*stepCount)) * stepCount) + 1.0f;
+            valueScaled = (1.0f/stepCount) * n;
+         }
       }
       DBG( 2, "     %g --> %g step %d", value, valueScaled, stepCount );
 
@@ -204,13 +210,6 @@ void  MeeblipVST_EditorView::placeElement( ParamID paramId, CFrame* frame, GuiIt
    switch( guiItemId)
    {
       case KnobAnimated:
-         {
-            CAnimKnob* knob = new CAnimKnob( r, this, paramId, guiItemBitmap);
-            frame->addView( knob);
-            guiControls[ paramId] = knob;
-         }
-         break;
-
       case Knob2Animated:
          {
             CAnimKnob* knob = new CAnimKnob( r, this, paramId, guiItemBitmap);
